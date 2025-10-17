@@ -84,6 +84,39 @@
             trap cleanup EXIT
 
             echo "Dotfiles active (will revert when you exit this shell)"
+
+            # github stuff
+            export GH_CONFIG_DIR=$PWD/.gh-shell-config
+
+            # Ensure the directory exists
+            if [ ! -d "$GH_CONFIG_DIR" ]; then
+              mkdir -p "$GH_CONFIG_DIR"
+            fi
+
+            # Automatically ignore the GH config folder in git
+            if [ -d .git ]; then
+              if ! grep -qxF ".gh-shell-config/" .gitignore 2>/dev/null; then
+                echo ".gh-shell-config/" >> .gitignore
+                echo "Added .gh-shell-config/ to .gitignore"
+              fi
+            fi
+
+            # Force git to use SSH (so it matches your key)
+            git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+            # Login once per project if needed
+            if ! gh auth status > /dev/null 2>&1; then
+              echo "Logging into GitHub (this happens once per project)..."
+              gh auth login --hostname github.com --web
+              gh config set git_protocol ssh
+            else
+              echo "Using cached GitHub login from $GH_CONFIG_DIR"
+            fi
+
+            echo "GitHub CLI config directory: $GH_CONFIG_DIR"
+
+            # Define a helper command to clear the cached login if needed
+            alias gh-reset='rm -rf "$GH_CONFIG_DIR" && echo "GitHub shell login cleared."'
           '';
         };
       }
