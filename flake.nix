@@ -21,8 +21,8 @@
           clang-tools
       	  screen
           libgcc
-	        lz4
-	        usbutils
+          lz4
+          usbutils
           neofetch
           feh
         ];
@@ -36,9 +36,54 @@
           packages = devPackages;
 
           shellHook = ''
-            source ~/.bash_profile
-            source ~/.bashrc
-            mancx
+            DOTFILES_DIR="$PWD/dotfiles"
+            CONFIG_DIR="$HOME/.config"
+            BACKUP_DIR="$(mktemp -d /tmp/dotconfig-backup-XXXX)"
+
+            echo "Setting up temporary dotfile links from $DOTFILES_DIR"
+            echo "Backups stored in: $BACKUP_DIR"
+
+            mkdir -p "$CONFIG_DIR"
+
+            # Backup + replace each item
+            for src in "$DOTFILES_DIR"/*; do
+              name="$(basename "$src")"
+              target="$CONFIG_DIR/$name"
+
+              if [ -e "$target" ]; then
+                mv "$target" "$BACKUP_DIR/$name"
+                echo "Backed up $target -> $BACKUP_DIR/$name"
+              fi
+
+              ln -s "$src" "$target"
+              echo "Linked $target -> $src"
+            done
+
+            # Define cleanup on exit
+            cleanup() {
+              echo "Restoring original configs..."
+              for src in "$DOTFILES_DIR"/*; do
+                name="$(basename "$src")"
+                target="$CONFIG_DIR/$name"
+                backup="$BACKUP_DIR/$name"
+
+                # Remove symlink
+                [ -L "$target" ] && rm "$target"
+
+                # Restore backup if it exists
+                if [ -e "$backup" ]; then
+                  mv "$backup" "$target"
+                  echo "Restored $target"
+                fi
+              done
+
+              rmdir "$BACKUP_DIR" 2>/dev/null || true
+              echo "Configs restored."
+            }
+
+            trap cleanup EXIT
+
+            echo "Dotfiles active (will revert when you exit this shell)"
           '';
         };
       }
